@@ -6,25 +6,24 @@ import random
 from pygame.locals import *
 from pygame.math import Vector2
 
+pygame.init()
 
 # Game Settings
 WINDOWWIDTH = 1920
 WINDOWHEIGHT = 1080
 surf = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT), 0, 32)
-
+FONT = pygame.font.Font('freesansbold.ttf', 42)
 # Ball Settings
-BALL_SPEED_SCALE = 20
-BALL_SPEED_VECTOR = Vector2(BALL_SPEED_SCALE, BALL_SPEED_SCALE)
 BALL_RADIUS = 10
 BALL_START_POSITION = [WINDOWWIDTH/2, WINDOWHEIGHT/2]
 BALL_COLOR = "#FFFFFF"
 
 # Paddle Settings
 MID_PAD_WIDTH = 20
-MID_PAD_HEIGHT = 200
-TOP_PAD_WIDTH = 200
+MID_PAD_HEIGHT = 300
+TOP_PAD_WIDTH = 300
 TOP_PAD_HEIGHT = 20
-BOT_PAD_WIDTH = 200
+BOT_PAD_WIDTH = 300
 BOT_PAD_HEIGHT = 20
 
 # Human Settings
@@ -51,6 +50,13 @@ PADDLE_TYPE = {
         "CP_TOP": pygame.Rect(CP_TOP_PAD_START_POS[0], CP_TOP_PAD_START_POS[1], TOP_PAD_WIDTH, TOP_PAD_HEIGHT),
         "CP_BOT": pygame.Rect(CP_BOT_PAD_START_POS[0], CP_BOT_PAD_START_POS[1], BOT_PAD_WIDTH, BOT_PAD_HEIGHT)}
 
+def get_ball_start_vector():
+    BALL_SPEED_SCALE = 1
+    BALL_POSS_VECT_VAL = [-x for x in range(1, 11) if x  != 0]
+    BALL_SPEED_VECTOR = Vector2(random.choice(BALL_POSS_VECT_VAL) * BALL_SPEED_SCALE, random.choice(BALL_POSS_VECT_VAL) * BALL_SPEED_SCALE)
+    return BALL_SPEED_VECTOR
+
+
 class paddle:
     """Manages a paddle"""
     def __init__(self, speed, paddle_type):
@@ -67,6 +73,51 @@ class paddle:
 
     def get_color(self):
         return Color(self.color)
+
+class score:
+    """Manages the score"""
+    def __init__(self):
+        self.hu_score = 10
+        self.hu_needed = 11
+        self.cp_score = 10
+        self.cp_needed = 11
+        self.color = Color("#FFFFFF")
+
+    def update_scores(self):
+        # Update hu score
+        hu_text = str(self.hu_score) + '/' + str(self.hu_needed)
+        hu_score_surf = FONT.render((hu_text), True, self.color)
+        hu_score_rect = hu_score_surf.get_rect()
+        hu_score_rect.midtop = (HU_TOP_PAD_START_POS[0] + TOP_PAD_WIDTH/2, WINDOWWIDTH/24)
+        surf.blit(hu_score_surf, hu_score_rect)
+        # Update cp score
+        cp_text = str(self.cp_score) + '/' + str(self.cp_needed)
+        cp_score_surf = FONT.render((cp_text), True, self.color)
+        cp_score_rect = cp_score_surf.get_rect()
+        cp_score_rect.midtop = (CP_TOP_PAD_START_POS[0] + TOP_PAD_WIDTH/2, WINDOWWIDTH/24)
+        surf.blit(cp_score_surf, cp_score_rect)
+
+    def hu_scored(self):
+        self.hu_score += 1
+        
+        if self.hu_score == self.hu_needed and (self.hu_score - self.cp_score) >= 2:
+            print("hu won")
+            return True
+        else:
+            if self.hu_score <= 11:
+                self.hu_needed = self.cp_score + 2
+            return False
+    def cp_scored(self):
+        self.cp_score += 1
+
+        if self.cp_score == self.cp_needed and (self.cp_score - self.hu_score) >= 2:
+            print("cp won")
+            return True
+
+        else:
+            if self.cp_score <= 11:
+                self.cp_needed = self.hu_score + 2
+            return False
 
 class human:
     """Manages a human player"""
@@ -125,6 +176,7 @@ class cpu:
     def scored(self):
         self.score += 1
 
+
     def reset_score(self):
         self.score = 0
 
@@ -141,16 +193,14 @@ class cpu:
 
 class ball:
     """Manages a ball"""
-    def __init__(self, radius=BALL_RADIUS, xpos=BALL_START_POSITION[0], ypos=BALL_START_POSITION[1], velocity=BALL_SPEED_VECTOR, color=BALL_COLOR):
+    def __init__(self, radius=BALL_RADIUS, xpos=BALL_START_POSITION[0], ypos=BALL_START_POSITION[1], color=BALL_COLOR):
         """Initializes a ball"""
         self.radius = radius
         self.color = color
         self.xpos = xpos
         self.ypos = ypos
-        self.direction = 0
         self.rect = pygame.Rect(self.xpos, self.ypos, radius/2, radius/2)
-        self.velocity = velocity
-        self.speed = 10
+        self.velocity = get_ball_start_vector()
     def __str__(self):
         return 'Ball: rect={}, velocity={}'.format(self.rect, self.velocity)
 
@@ -170,23 +220,23 @@ class ball:
         return (self.rect.left + self.radius, self.rect.top + self.radius)
 
     def update(self):
-        direction_radians = math.radians(self.direction)
-
-        self.xpos += self.speed * math.sin(direction_radians)
-        self.ypos -= self.speed * math.cos(direction_radians)
-
-        self.rect.left += self.xpos
-        self.rect.top += self.ypos
+        self.rect.left += self.velocity[0]
+        self.rect.top += self.velocity[1]
     
     def reset(self):
         self.get_rect().left = BALL_START_POSITION[0]
         self.get_rect().top = BALL_START_POSITION[1]
-        # self.direction = random.randrange(-45, 45)
+        self.velocity = get_ball_start_vector()
 
-    def bounce_x(self, diff):
-        self.direction = (180-self.direction)%360
-        self.direction -= diff
+    def bounce_x(self):
+        self.velocity[0] *= -1
+        self.velocity[0] += self.velocity[0] * 0.1
+        self.velocity[1] += self.velocity[1] * 0.1
 
+    def bounce_y(self):
+        self.velocity[1] *= -1
+        self.velocity[0] += self.velocity[0] * 0.1
+        self.velocity[1] += self.velocity[1] * 0.1
 
 def play():
     pygame.display.set_caption('Walless Pong')
@@ -194,80 +244,107 @@ def play():
     b = ball()
     h1 = human()
     c1 = cpu()
+    scores = score()
+    done = False
+    move_left = False
+    move_right = False
+    move_up = False
+    move_down = False
 
     quit_game = False
-    while not quit_game:
+    while not quit_game and not done:
         for event in pygame.event.get():
             if event.type == QUIT:
                 quit_game = True
+            if event.type == KEYDOWN:
+                if event.key == K_LEFT:
+                    move_right = False
+                    move_left = True
+                if event.key == K_RIGHT:
+                    move_left = False
+                    move_right = True
+                if event.key == K_UP:
+                    move_down = False
+                    move_up = True
+                if event.key == K_DOWN:
+                    move_up = False
+                    move_down = True
+            if event.type == KEYUP:
+                if event.key == K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                if event.key == K_LEFT:
+                    move_left = False
+                if event.key == K_RIGHT:
+                    move_right = False
+                if event.key == K_UP:
+                    move_up = False
+                if event.key == K_DOWN:
+                    move_down = False
+
+        if move_down and h1.mid_paddle.rect.bottom < h1.bot_paddle.rect.top:
+            h1.mid_paddle.rect.top += HU_PAD_SPEED_SCALE
+        if move_up and h1.mid_paddle.rect.top > h1.top_paddle.rect.bottom:
+            h1.mid_paddle.rect.top -= HU_PAD_SPEED_SCALE
+        if move_left and h1.top_paddle.rect.left > h1.mid_paddle.rect.right:
+            h1.top_paddle.rect.left -= HU_PAD_SPEED_SCALE
+            h1.bot_paddle.rect.left -= HU_PAD_SPEED_SCALE
+        if move_right and h1.top_paddle.rect.right < WINDOWWIDTH/2:
+            h1.top_paddle.rect.left += HU_PAD_SPEED_SCALE
+            h1.bot_paddle.rect.left += HU_PAD_SPEED_SCALE
+
+
         surf.fill(Color('#000000'))
+
+        if(done):
+            # reset game
+            pass
 
         b.update()
 
-        # Get all paddles
-        human_paddles = h1.get_paddles()
-        cpu_paddles = c1.get_paddles()
-        # Get their rects
-        human_rects = [ r.get_rect() for r in human_paddles]
-        cpu_rects = [ r.get_rect() for r in cpu_paddles]
-        # any_rects = human_rects + cpu_rects
+        # Bounce off verticle paddles
+        vert_paddles = [h1.mid_paddle, c1.mid_paddle]
+        for pad in vert_paddles:
+            if b.rect.colliderect(pad):
+                b.bounce_x()
 
-        if b.rect.colliderect(c1.mid_paddle.rect):
-            diff = (c1.mid_paddle.rect.x + c1.mid_paddle.rect.width/2) - (b.rect.x + b.width/2)
-
-            b.bounce_x(diff)
-
-        # # bounce off right mid paddle's left
-        # if b.get_rect().right >= c1.mid_paddle.get_rect().left and b.get_rect().top <= c1.mid_paddle.get_rect().bottom and b.get_rect().bottom >= c1.mid_paddle.get_rect().top:
-        #     b.get_velocity()[0] *= -1
-        # # bounce off left mid paddle's right
-        # if b.get_rect().left <= h1.mid_paddle.get_rect().right and b.get_rect().top <= h1.mid_paddle.get_rect().bottom and b.get_rect().bottom >= h1.mid_paddle.get_rect().top:
-        #     b.get_velocity()[0] *= -1
-        # # bounce off left mid paddles top
-        # if b.get_rect().bottom == h1.mid_paddle.get_rect().top and b.get_rect().left <= h1.mid_paddle.get_rect().right:
-        #     b.get_velocity()[1] *= -1
-        # # bounce off left mid paddles top
-        # if b.get_rect().bottom == h1.mid_paddle.get_rect().top and b.get_rect().right >= h1.mid_paddle.get_rect().left:
-        #     b.get_velocity()[1] *= -1
-
-        # # bounce off left mid paddles bot
-        # if b.get_rect().top == h1.mid_paddle.get_rect().bottom and b.get_rect().left <= h1.mid_paddle.get_rect().right:
-        #     b.get_velocity()[1] *= -1
-
-        # # bounce off left mid paddles bot
-        # if b.get_rect().top == h1.mid_paddle.get_rect().bottom and b.get_rect().right >= h1.mid_paddle.get_rect().left:
-        #     b.get_velocity()[1] *= -1
-
+        # Bounce off horizontal paddles
+        horiz_paddles = [h1.top_paddle, h1.bot_paddle, c1.top_paddle, c1.bot_paddle]
+        for pad in horiz_paddles:
+            if b.rect.colliderect(pad):
+                b.bounce_y()
 
 
         # Change this logic to score points
         if b.get_rect().left <= 0:
-            c1.scored()
+            done = scores.cp_scored()
             b.reset()
         if b.get_rect().right >= WINDOWWIDTH:
-            h1.scored()
+            done = scores.hu_scored()
             b.reset()
 
         if b.get_rect().top <= 0:
-            if b.xpos >= WINDOWWIDTH/2:
-                h1.scored()
+            if b.get_center()[0] >= WINDOWWIDTH/2:
+                done = scores.hu_scored()
             else:
-                c1.scored()
+                done = scores.cp_scored()
             b.reset()
 
         if b.get_rect().bottom >= WINDOWHEIGHT:
-            if b.xpos >= WINDOWWIDTH/2:
-                h1.scored()
+            if b.get_center()[0] >= WINDOWWIDTH/2:
+                done = scores.hu_scored()
             else:
-                c1.scored()
+                done = scores.cp_scored()
             b.reset()
+
+        scores.update_scores()   
 
         h1.draw_paddles()
         c1.draw_paddles()
 
         pygame.draw.circle(surf, b.get_color(), b.get_center(), b.get_radius())
         pygame.display.update()
-        time.sleep(0.02)
+        time.sleep(1/60)
 
     pygame.quit()
     sys.exit()
