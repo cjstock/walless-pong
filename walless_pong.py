@@ -7,7 +7,6 @@ from pygame.locals import *
 from pygame.math import Vector2
 
 pygame.init()
-mainClock = pygame.time.Clock()
 
 # Game Settings
 WINDOWWIDTH = 1920
@@ -43,6 +42,7 @@ CP_PAD_COLOR = Color("#00FF00")
 
 
 
+# Used to initialize paddle instance
 PADDLE_TYPE = {
         "HU_MID": pygame.Rect(HU_MID_PAD_START_POS[0], HU_MID_PAD_START_POS[1], MID_PAD_WIDTH, MID_PAD_HEIGHT),
         "HU_TOP": pygame.Rect(HU_TOP_PAD_START_POS[0], HU_TOP_PAD_START_POS[1], TOP_PAD_WIDTH, TOP_PAD_HEIGHT),
@@ -51,6 +51,7 @@ PADDLE_TYPE = {
         "CP_TOP": pygame.Rect(CP_TOP_PAD_START_POS[0], CP_TOP_PAD_START_POS[1], TOP_PAD_WIDTH, TOP_PAD_HEIGHT),
         "CP_BOT": pygame.Rect(CP_BOT_PAD_START_POS[0], CP_BOT_PAD_START_POS[1], BOT_PAD_WIDTH, BOT_PAD_HEIGHT)}
 
+# Used to set the ball in motion upon reset or start of game
 def get_ball_start_vector():
     BALL_SPEED_SCALE = 1
     BALL_POSS_VECT_VAL = [x for x in range(-10, 11) if x  != 0]
@@ -91,6 +92,7 @@ class score:
         hu_score_rect = hu_score_surf.get_rect()
         hu_score_rect.midtop = (HU_TOP_PAD_START_POS[0] + TOP_PAD_WIDTH/2, WINDOWWIDTH/24)
         surf.blit(hu_score_surf, hu_score_rect)
+
         # Update cp score
         cp_text = str(self.cp_score) + '/' + str(self.cp_needed)
         cp_score_surf = FONT.render((cp_text), True, self.color)
@@ -108,6 +110,7 @@ class score:
             if self.hu_score >= 11:
                 self.hu_needed += 1
             return False
+
     def cp_scored(self):
         self.cp_score += 1
 
@@ -302,6 +305,7 @@ def play():
                     move_up = False
                 if event.key == K_DOWN:
                     move_down = False
+
         # Move Player
         if move_down and h1.mid_paddle.rect.bottom < h1.bot_paddle.rect.top:
             h1.mid_paddle.rect.top += HU_PAD_SPEED_SCALE
@@ -347,7 +351,7 @@ def play():
             if b.rect.colliderect(pad):
                 b.bounce_y()
 
-        # Change this logic to score points
+        # Respective player scores when ball touches the edge of the screen
         if b.get_rect().left <= 0:
             done = scores.cp_scored()
             b.reset()
